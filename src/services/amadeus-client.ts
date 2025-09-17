@@ -174,6 +174,7 @@ export class AmadeusClient {
 
   /**
    * Search for cheapest flight dates
+   * Note: This API has limited route coverage and only works with pre-computed cached routes
    */
   async searchFlightCheapestDates(params: any): Promise<AmadeusResponse<any>> {
     try {
@@ -192,6 +193,33 @@ export class AmadeusClient {
 
       return response.result;
     } catch (error: any) {
+      // Handle specific Amadeus Flight Dates API errors
+      if (error.description && Array.isArray(error.description)) {
+        const firstError = error.description[0];
+        
+        // Check for specific error codes that indicate unsupported routes
+        if (firstError.code === 1797 || firstError.detail?.includes('No response found for this query')) {
+          const enhancedError = new Error(
+            `Amadeus Flight Dates API Error (${firstError.code}): ${firstError.detail}. ` +
+            `This route (${params.origin} → ${params.destination}) may not be supported by the Flight Dates API. ` +
+            `The Flight Dates API only works with pre-computed cached routes. ` +
+            `Consider using the regular Flight Search API for broader coverage.`
+          );
+          enhancedError.name = 'UnsupportedRouteError';
+          throw enhancedError;
+        }
+        
+        if (firstError.code === 141 || firstError.detail?.includes('SYSTEM ERROR HAS OCCURRED')) {
+          const enhancedError = new Error(
+            `Amadeus Flight Dates API Error (${firstError.code}): ${firstError.detail}. ` +
+            `This may be due to system issues or unsupported route combinations. ` +
+            `Consider using the regular Flight Search API instead.`
+          );
+          enhancedError.name = 'SystemError';
+          throw enhancedError;
+        }
+      }
+      
       throw this.handleAmadeusError(error);
     }
   }
@@ -205,8 +233,17 @@ export class AmadeusClient {
       response: error.response,
       request: error.request,
       message: error.message,
-      code: error.code
+      code: error.code,
+      description: error.description
     });
+
+    // Handle Amadeus SDK specific error structure
+    if (error.description && Array.isArray(error.description)) {
+      const firstError = error.description[0];
+      const errorMessage = firstError.detail || firstError.title || firstError.message || 'API Error';
+      const statusCode = firstError.status || error.code || 'Unknown';
+      return new Error(`Amadeus API Error (${statusCode}): ${errorMessage}`);
+    }
 
     if (error.response) {
       // API responded with error status

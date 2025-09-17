@@ -172,8 +172,11 @@ export class FlightSearchTool {
 
   /**
    * Search for cheapest flight dates
+   * Note: This API has limited route coverage and only works with pre-computed cached routes
    */
   async searchFlightCheapestDates(params: unknown): Promise<MCPToolResult> {
+    let validatedParams: any = null;
+    
     try {
       const schema = z.object({
         origin: z.string().length(3, 'Airport code must be exactly 3 characters').toUpperCase(),
@@ -199,16 +202,32 @@ export class FlightSearchTool {
         }
       );
       
-      const validatedParams = validateParams(schema, params);
+      validatedParams = validateParams(schema, params);
       
-      const response = await withRetry(
-        () => this.amadeusClient.searchFlightCheapestDates(validatedParams),
-        3,
-        'searchFlightCheapestDates'
-      );
+      const response = await this.amadeusClient.searchFlightCheapestDates(validatedParams);
 
       return ResponseFormatter.formatFlightCheapestDates(response);
     } catch (error: any) {
+      // Handle specific errors for cheapest dates API
+      if (error.name === 'UnsupportedRouteError' || error.name === 'SystemError') {
+        const routeInfo = validatedParams ? 
+          `${validatedParams.origin} → ${validatedParams.destination}` : 
+          'the specified route';
+        
+        const fallbackMessage = `The cheapest dates search is not available for ${routeInfo}. ` +
+          `This is because the Flight Dates API only works with pre-computed cached routes. ` +
+          `For broader coverage, consider using the regular flight search API instead.`;
+        
+        return {
+          content: [{
+            type: 'text',
+            text: `⚠️ ${fallbackMessage}\n\n` +
+                  `Alternative: Use the regular flight search with different dates to find the best prices. ` +
+                  `The regular flight search API supports all routes but requires specific dates.`
+          }]
+        };
+      }
+      
       ErrorHandler.logError(ErrorHandler.handleError(error), 'searchFlightCheapestDates');
       return ResponseFormatter.formatError(error);
     }
