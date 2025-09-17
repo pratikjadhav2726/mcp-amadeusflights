@@ -1,7 +1,5 @@
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { CallToolRequestSchema, ListToolsRequestSchema, ListPromptsRequestSchema, GetPromptRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { completable } from '@modelcontextprotocol/sdk/server/completable.js';
 import { z } from 'zod';
 import { AmadeusClient } from '../services/amadeus-client.js';
 import { FlightSearchTool } from './tools/flight-search.js';
@@ -9,313 +7,208 @@ import { ServerConfig } from '../types/mcp.js';
 import { ErrorHandler } from '../utils/error-handler.js';
 
 export class AmadeusFlightsMCPServer {
-  private server: Server;
+  private server: McpServer;
   private amadeusClient: AmadeusClient;
   private flightSearchTool: FlightSearchTool;
 
   constructor(config: ServerConfig) {
-    this.server = new Server(
-      {
+    this.server = new McpServer({
         name: config.mcp.name,
         version: config.mcp.version,
-      },
-      {
-        capabilities: {
-          tools: {},
-          prompts: {},
-        },
-      }
-    );
+    });
 
     this.amadeusClient = new AmadeusClient(config);
     this.flightSearchTool = new FlightSearchTool(this.amadeusClient);
 
-    this.setupToolHandlers();
-    this.setupPromptHandlers();
+    this.setupTools();
+    this.setupPrompts();
     this.setupErrorHandling();
   }
 
-  private setupToolHandlers(): void {
-    // List available tools
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-      return {
-        tools: [
-          {
-            name: 'search_flights',
-            description: 'PRIMARY TOOL for finding flights between airports. Use this tool when users ask for "flights from X to Y", "best flights", "cheapest flights", or any flight search request. This tool returns complete flight information including prices, schedules, airlines, and booking details. Common airport codes: LAX (Los Angeles), SEA (Seattle), JFK (New York), LHR (London), CDG (Paris). Only use other tools if you need additional information not provided by this search.',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                origin: {
-                  type: 'string',
-                  description: 'Origin airport IATA code (e.g., LAX for Los Angeles, SEA for Seattle, JFK for New York). Use common codes directly - LAX, SEA, JFK, LHR, CDG, etc.',
-                  minLength: 3,
-                  maxLength: 3
-                },
-                destination: {
-                  type: 'string',
-                  description: 'Destination airport IATA code (e.g., SEA for Seattle, LAX for Los Angeles, JFK for New York). Use common codes directly - LAX, SEA, JFK, LHR, CDG, etc.',
-                  minLength: 3,
-                  maxLength: 3
-                },
-                departureDate: {
-                  type: 'string',
-                  description: 'Departure date in YYYY-MM-DD format',
-                  pattern: '^\\d{4}-\\d{2}-\\d{2}$'
-                },
-                adults: {
-                  type: 'integer',
-                  description: 'Number of adult passengers',
-                  minimum: 1,
-                  maximum: 9
-                },
-                children: {
-                  type: 'integer',
-                  description: 'Number of child passengers',
-                  minimum: 0,
-                  maximum: 8
-                },
-                infants: {
-                  type: 'integer',
-                  description: 'Number of infant passengers',
-                  minimum: 0,
-                  maximum: 8
-                },
-                returnDate: {
-                  type: 'string',
-                  description: 'Return date in YYYY-MM-DD format (for round trip)',
-                  pattern: '^\\d{4}-\\d{2}-\\d{2}$'
-                },
-                travelClass: {
-                  type: 'string',
-                  description: 'Travel class',
-                  enum: ['ECONOMY', 'PREMIUM_ECONOMY', 'BUSINESS', 'FIRST']
-                },
-                nonStop: {
-                  type: 'boolean',
-                  description: 'Search for non-stop flights only'
-                },
-                maxPrice: {
-                  type: 'number',
-                  description: 'Maximum price filter'
-                },
-                currencyCode: {
-                  type: 'string',
-                  description: 'Currency code (e.g., USD, EUR)',
-                  minLength: 3,
-                  maxLength: 3
-                },
-                max: {
-                  type: 'integer',
-                  description: 'Maximum number of results to return',
-                  minimum: 1,
-                  maximum: 250
-                }
-              },
-              required: ['origin', 'destination', 'departureDate', 'adults']
-            }
-          },
-          {
-            name: 'get_flight_offers',
-            description: 'Get detailed information about specific flight offers by their ID. Use this tool to retrieve complete details of a flight offer that was previously found through search_flights.',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                offerId: {
-                  type: 'string',
-                  description: 'Flight offer ID'
-                }
-              },
-              required: ['offerId']
-            }
-          },
-          {
-            name: 'search_airports',
-            description: 'ONLY use this tool when you need to find airport codes for city names (e.g., "Seattle" → "SEA"). Do NOT use this tool if you already have airport codes. This tool is for converting city names to IATA codes before using search_flights.',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                keyword: {
-                  type: 'string',
-                  description: 'Search keyword (airport name, city, or IATA code)',
-                  minLength: 1,
-                  maxLength: 100
-                },
-                countryCode: {
-                  type: 'string',
-                  description: 'Country code to filter results (e.g., US, GB)',
-                  minLength: 2,
-                  maxLength: 2
-                },
-                max: {
-                  type: 'integer',
-                  description: 'Maximum number of results to return',
-                  minimum: 1,
-                  maximum: 100
-                }
-              },
-              required: ['keyword']
-            }
-          },
-          {
-            name: 'get_airlines',
-            description: 'ONLY use this tool when you need detailed airline information (like full airline names) for specific airline codes. Do NOT use this tool for general flight searches - search_flights already provides airline information.',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                airlineCodes: {
-                  type: 'string',
-                  description: 'Comma-separated airline codes (e.g., BA,AA,DL)'
-                },
-                max: {
-                  type: 'integer',
-                  description: 'Maximum number of results to return',
-                  minimum: 1,
-                  maximum: 100
-                }
-              }
-            }
-          },
-          {
-            name: 'search_multi_city_flights',
-            description: 'Search for multi-city flight combinations with multiple stops. Use this tool for complex itineraries with multiple destinations and stops. IMPORTANT: Always use sources: ["GDS"] for traditional airlines. Example: {"originDestinations": [...], "travelers": [...], "sources": ["GDS"]}',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                originDestinations: {
-                  type: 'array',
-                  description: 'Array of origin-destination pairs',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      id: { type: 'string' },
-                      originLocationCode: { type: 'string', minLength: 3, maxLength: 3 },
-                      destinationLocationCode: { type: 'string', minLength: 3, maxLength: 3 },
-                      departureDateTimeRange: {
-                        type: 'object',
-                        properties: {
-                          date: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
-                          time: { type: 'string', pattern: '^\\d{2}:\\d{2}$' }
-                        },
-                        required: ['date']
-                      }
-                    },
-                    required: ['id', 'originLocationCode', 'destinationLocationCode', 'departureDateTimeRange']
-                  },
-                  minItems: 1,
-                  maxItems: 6
-                },
-                travelers: {
-                  type: 'array',
-                  description: 'Array of travelers',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      id: { type: 'string' },
-                      travelerType: {
-                        type: 'string',
-                        enum: ['ADULT', 'CHILD', 'SENIOR', 'YOUNG', 'HELD_INFANT', 'SEATED_INFANT', 'STUDENT']
-                      }
-                    },
-                    required: ['id', 'travelerType']
-                  },
-                  minItems: 1,
-                  maxItems: 9
-                },
-                sources: {
-                  type: 'array',
-                  description: 'REQUIRED: Data sources to search. Use ["GDS"] for traditional airlines. DO NOT use other values.',
-                  items: { 
-                    type: 'string',
-                    enum: ['GDS']
-                  },
-                  minItems: 1,
-                  default: ['GDS'],
-                  examples: [['GDS']]
-                }
-              },
-              required: ['originDestinations', 'travelers', 'sources']
-            }
-          },
-          {
-            name: 'search_flight_cheapest_dates',
-            description: 'ONLY use this tool when users specifically ask for "cheapest dates" or "when is the cheapest time to fly". Do NOT use this tool for regular flight searches - use search_flights instead.',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                origin: {
-                  type: 'string',
-                  description: 'Origin airport IATA code',
-                  minLength: 3,
-                  maxLength: 3
-                },
-                destination: {
-                  type: 'string',
-                  description: 'Destination airport IATA code',
-                  minLength: 3,
-                  maxLength: 3
-                },
-                departureDate: {
-                  type: 'string',
-                  description: 'Departure date in YYYY-MM-DD format',
-                  pattern: '^\\d{4}-\\d{2}-\\d{2}$'
-                },
-                returnDate: {
-                  type: 'string',
-                  description: 'Return date in YYYY-MM-DD format',
-                  pattern: '^\\d{4}-\\d{2}-\\d{2}$'
-                },
-                oneWay: {
-                  type: 'boolean',
-                  description: 'One-way trip only'
-                },
-                nonStop: {
-                  type: 'boolean',
-                  description: 'Non-stop flights only'
-                },
-                maxPrice: {
-                  type: 'number',
-                  description: 'Maximum price filter'
-                }
-              },
-              required: ['origin', 'destination', 'departureDate']
-            }
-          }
-        ]
-      };
-    });
-
-    // Handle tool calls
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      const { name, arguments: args } = request.params;
-
-      try {
-        let result;
-
-        switch (name) {
-          case 'search_flights':
-            result = await this.flightSearchTool.searchFlights(args);
-            break;
-          case 'get_flight_offers':
-            result = await this.flightSearchTool.getFlightOffers(args);
-            break;
-          case 'search_airports':
-            result = await this.flightSearchTool.searchAirports(args);
-            break;
-          case 'get_airlines':
-            result = await this.flightSearchTool.getAirlines(args);
-            break;
-          case 'search_multi_city_flights':
-            result = await this.flightSearchTool.searchMultiCityFlights(args);
-            break;
-          case 'search_flight_cheapest_dates':
-            result = await this.flightSearchTool.searchFlightCheapestDates(args);
-            break;
-          default:
-            throw new Error(`Unknown tool: ${name}`);
+  private setupTools(): void {
+    // Search flights tool
+    this.server.tool(
+      'search_flights',
+      'PRIMARY TOOL for finding flights between airports. Use this tool when users ask for "flights from X to Y", "best flights", "cheapest flights", or any flight search request. This tool returns complete flight information including prices, schedules, airlines, and booking details. Common airport codes: LAX (Los Angeles), SEA (Seattle), JFK (New York), LHR (London), CDG (Paris). Only use other tools if you need additional information not provided by this search.',
+      {
+        origin: z.string().min(3).max(3).describe('Origin airport IATA code (e.g., LAX for Los Angeles, SEA for Seattle, JFK for New York). Use common codes directly - LAX, SEA, JFK, LHR, CDG, etc.'),
+        destination: z.string().min(3).max(3).describe('Destination airport IATA code (e.g., SEA for Seattle, LAX for Los Angeles, JFK for New York). Use common codes directly - LAX, SEA, JFK, LHR, CDG, etc.'),
+        departureDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe('Departure date in YYYY-MM-DD format'),
+        adults: z.number().int().min(1).max(9).describe('Number of adult passengers'),
+        children: z.number().int().min(0).max(8).optional().describe('Number of child passengers'),
+        infants: z.number().int().min(0).max(8).optional().describe('Number of infant passengers'),
+        returnDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('Return date in YYYY-MM-DD format (for round trip)'),
+        travelClass: z.enum(['ECONOMY', 'PREMIUM_ECONOMY', 'BUSINESS', 'FIRST']).optional().describe('Travel class'),
+        nonStop: z.boolean().optional().describe('Search for non-stop flights only'),
+        maxPrice: z.number().optional().describe('Maximum price filter'),
+        currencyCode: z.string().min(3).max(3).optional().describe('Currency code (e.g., USD, EUR)'),
+        max: z.number().int().min(1).max(250).optional().describe('Maximum number of results to return')
+      },
+      async (args) => {
+        try {
+          const result = await this.flightSearchTool.searchFlights(args);
+          return {
+            content: result.content || [{
+              type: 'text',
+              text: 'Tool executed successfully'
+            }]
+          };
+        } catch (error: any) {
+          const mcpError = ErrorHandler.handleError(error);
+          ErrorHandler.logError(mcpError, 'tool:search_flights');
+          return {
+            content: [{
+              type: 'text',
+              text: `Error: ${mcpError.message}`
+            }]
+          };
         }
-
-        // Return proper MCP response format
+      }
+    );
+    // Get flight offers tool
+    this.server.tool(
+      'get_flight_offers',
+      'Get detailed information about specific flight offers by their ID. Use this tool to retrieve complete details of a flight offer that was previously found through search_flights.',
+      {
+        offerId: z.string().describe('Flight offer ID')
+      },
+      async (args) => {
+        try {
+          const result = await this.flightSearchTool.getFlightOffers(args);
+          return {
+            content: result.content || [{
+              type: 'text',
+              text: 'Tool executed successfully'
+            }]
+          };
+        } catch (error: any) {
+          const mcpError = ErrorHandler.handleError(error);
+          ErrorHandler.logError(mcpError, 'tool:get_flight_offers');
+          return {
+            content: [{
+              type: 'text',
+              text: `Error: ${mcpError.message}`
+            }]
+          };
+        }
+      }
+    );
+    // Search airports tool
+    this.server.tool(
+      'search_airports',
+      'ONLY use this tool when you need to find airport codes for city names (e.g., "Seattle" → "SEA"). Do NOT use this tool if you already have airport codes. This tool is for converting city names to IATA codes before using search_flights.',
+      {
+        keyword: z.string().min(1).max(100).describe('Search keyword (airport name, city, or IATA code)'),
+        countryCode: z.string().min(2).max(2).optional().describe('Country code to filter results (e.g., US, GB)'),
+        max: z.number().int().min(1).max(100).optional().describe('Maximum number of results to return')
+      },
+      async (args) => {
+        try {
+          const result = await this.flightSearchTool.searchAirports(args);
+          return {
+            content: result.content || [{
+              type: 'text',
+              text: 'Tool executed successfully'
+            }]
+          };
+        } catch (error: any) {
+          const mcpError = ErrorHandler.handleError(error);
+          ErrorHandler.logError(mcpError, 'tool:search_airports');
+          return {
+            content: [{
+              type: 'text',
+              text: `Error: ${mcpError.message}`
+            }]
+          };
+        }
+      }
+    );
+    // Get airlines tool
+    this.server.tool(
+      'get_airlines',
+      'ONLY use this tool when you need detailed airline information (like full airline names) for specific airline codes. Do NOT use this tool for general flight searches - search_flights already provides airline information.',
+      {
+        airlineCodes: z.string().optional().describe('Comma-separated airline codes (e.g., BA,AA,DL)'),
+        max: z.number().int().min(1).max(100).optional().describe('Maximum number of results to return')
+      },
+      async (args) => {
+        try {
+          const result = await this.flightSearchTool.getAirlines(args);
+          return {
+            content: result.content || [{
+              type: 'text',
+              text: 'Tool executed successfully'
+            }]
+          };
+        } catch (error: any) {
+          const mcpError = ErrorHandler.handleError(error);
+          ErrorHandler.logError(mcpError, 'tool:get_airlines');
+          return {
+            content: [{
+              type: 'text',
+              text: `Error: ${mcpError.message}`
+            }]
+          };
+        }
+      }
+    );
+    // Search multi-city flights tool
+    this.server.tool(
+      'search_multi_city_flights',
+      'Search for multi-city flight combinations with multiple stops. Use this tool for complex itineraries with multiple destinations and stops. IMPORTANT: Always use sources: ["GDS"] for traditional airlines. Example: {"originDestinations": [...], "travelers": [...], "sources": ["GDS"]}',
+      {
+        originDestinations: z.array(z.object({
+          id: z.string(),
+          originLocationCode: z.string().min(3).max(3),
+          destinationLocationCode: z.string().min(3).max(3),
+          departureDateTimeRange: z.object({
+            date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+            time: z.string().regex(/^\d{2}:\d{2}$/).optional()
+          })
+        })).min(1).max(6).describe('Array of origin-destination pairs'),
+        travelers: z.array(z.object({
+          id: z.string(),
+          travelerType: z.enum(['ADULT', 'CHILD', 'SENIOR', 'YOUNG', 'HELD_INFANT', 'SEATED_INFANT', 'STUDENT'])
+        })).min(1).max(9).describe('Array of travelers'),
+        sources: z.array(z.literal('GDS')).min(1).default(['GDS']).describe('REQUIRED: Data sources to search. Use ["GDS"] for traditional airlines. DO NOT use other values.')
+      },
+      async (args) => {
+        try {
+          const result = await this.flightSearchTool.searchMultiCityFlights(args);
+          return {
+            content: result.content || [{
+              type: 'text',
+              text: 'Tool executed successfully'
+            }]
+          };
+        } catch (error: any) {
+          const mcpError = ErrorHandler.handleError(error);
+          ErrorHandler.logError(mcpError, 'tool:search_multi_city_flights');
+          return {
+            content: [{
+              type: 'text',
+              text: `Error: ${mcpError.message}`
+            }]
+          };
+        }
+      }
+    );
+    // Search flight cheapest dates tool
+    this.server.tool(
+      'search_flight_cheapest_dates',
+      'ONLY use this tool when users specifically ask for "cheapest dates" or "when is the cheapest time to fly". Do NOT use this tool for regular flight searches - use search_flights instead.',
+      {
+        origin: z.string().min(3).max(3).describe('Origin airport IATA code'),
+        destination: z.string().min(3).max(3).describe('Destination airport IATA code'),
+        departureDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe('Departure date in YYYY-MM-DD format'),
+        returnDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('Return date in YYYY-MM-DD format'),
+        oneWay: z.boolean().optional().describe('One-way trip only'),
+        nonStop: z.boolean().optional().describe('Non-stop flights only'),
+        maxPrice: z.number().optional().describe('Maximum price filter')
+      },
+      async (args) => {
+        try {
+          const result = await this.flightSearchTool.searchFlightCheapestDates(args);
         return {
           content: result.content || [{
             type: 'text',
@@ -324,8 +217,7 @@ export class AmadeusFlightsMCPServer {
         };
       } catch (error: any) {
         const mcpError = ErrorHandler.handleError(error);
-        ErrorHandler.logError(mcpError, `tool:${name}`);
-        
+          ErrorHandler.logError(mcpError, 'tool:search_flight_cheapest_dates');
         return {
           content: [{
             type: 'text',
@@ -333,48 +225,25 @@ export class AmadeusFlightsMCPServer {
           }]
         };
       }
-    });
+      }
+    );
   }
 
-  private setupPromptHandlers(): void {
-    // List available prompts
-    this.server.setRequestHandler(ListPromptsRequestSchema, async () => {
-      return {
-        prompts: [
-          {
-            name: 'format-flight-results',
-            description: 'Format flight search results with airline information, departure/arrival times, and layover details in a user-friendly format',
-            arguments: [
-              {
-                name: 'flightData',
-                description: 'Flight search results data to format',
-                required: true
-              },
-              {
-                name: 'includeDetails',
-                description: 'Whether to include detailed information like aircraft type and terminal info',
-                required: false
-              }
-            ]
-          }
-        ]
-      };
-    });
-
-    // Handle prompt requests
-    this.server.setRequestHandler(GetPromptRequestSchema, async (request) => {
-      const { name, arguments: args } = request.params;
-
-      try {
-        switch (name) {
-          case 'format-flight-results':
+  private setupPrompts(): void {
+    // Format flight results prompt
+    this.server.prompt(
+      'format-flight-results',
+      'Format flight search results with airline information, departure/arrival times, and layover details in a user-friendly format',
+      {
+        flightData: z.string().describe('Flight search results data to format'),
+        includeDetails: z.string().optional().describe('Whether to include detailed information like aircraft type and terminal info')
+      },
+      async (args) => {
+        try {
             return this.formatFlightResultsPrompt(args);
-          default:
-            throw new Error(`Unknown prompt: ${name}`);
-        }
       } catch (error: any) {
         const mcpError = ErrorHandler.handleError(error);
-        ErrorHandler.logError(mcpError, `prompt:${name}`);
+          ErrorHandler.logError(mcpError, 'prompt:format-flight-results');
         
         return {
           messages: [{
@@ -386,11 +255,12 @@ export class AmadeusFlightsMCPServer {
           }]
         };
       }
-    });
+      }
+    );
   }
 
   public formatFlightResultsPrompt(args: any): any {
-    const { flightData, includeDetails = true } = args;
+    const { flightData, includeDetails = 'true' } = args;
     
     // Parse flight data if it's a string
     let flights;
@@ -399,6 +269,9 @@ export class AmadeusFlightsMCPServer {
     } catch (error) {
       flights = flightData;
     }
+    
+    // Parse includeDetails string to boolean
+    const includeDetailsBool = includeDetails === 'true' || includeDetails === true;
 
     // Ensure we have flight offers
     const flightOffers = flights?.data || flights?.flightOffers || flights || [];
@@ -416,7 +289,7 @@ export class AmadeusFlightsMCPServer {
     }
 
     // Format the flight results
-    const formattedResults = this.formatFlightResults(flightOffers, includeDetails);
+    const formattedResults = this.formatFlightResults(flightOffers, includeDetailsBool);
     
     return {
       messages: [{
@@ -536,10 +409,7 @@ export class AmadeusFlightsMCPServer {
   }
 
   private setupErrorHandling(): void {
-    this.server.onerror = (error) => {
-      console.error('MCP Server Error:', error);
-    };
-
+    // McpServer handles errors internally, but we can still set up global error handlers
     process.on('uncaughtException', (error) => {
       console.error('Uncaught Exception:', error);
       process.exit(1);
