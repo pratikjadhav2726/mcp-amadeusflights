@@ -174,7 +174,7 @@ export class AmadeusFlightsMCPServer {
           },
           {
             name: 'search_multi_city_flights',
-            description: 'Search for multi-city flight combinations with multiple stops. Use this tool for complex itineraries with multiple destinations and stops.',
+            description: 'Search for multi-city flight combinations with multiple stops. Use this tool for complex itineraries with multiple destinations and stops. IMPORTANT: Always use sources: ["GDS"] for traditional airlines. Example: {"originDestinations": [...], "travelers": [...], "sources": ["GDS"]}',
             inputSchema: {
               type: 'object',
               properties: {
@@ -220,13 +220,14 @@ export class AmadeusFlightsMCPServer {
                 },
                 sources: {
                   type: 'array',
-                  description: 'Data sources to search (GDS for traditional airlines, LCC for low-cost carriers)',
+                  description: 'REQUIRED: Data sources to search. Use ["GDS"] for traditional airlines. DO NOT use other values.',
                   items: { 
                     type: 'string',
-                    enum: ['GDS', 'LCC']
+                    enum: ['GDS']
                   },
                   minItems: 1,
-                  default: ['GDS']
+                  default: ['GDS'],
+                  examples: [['GDS']]
                 }
               },
               required: ['originDestinations', 'travelers', 'sources']
