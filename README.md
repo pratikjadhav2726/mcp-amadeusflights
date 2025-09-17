@@ -61,7 +61,7 @@ Search for multi-city flight combinations.
 - `travelers` (required): Array of travelers with types
 - `sources` (required): Data sources to search
 
-### 7. `search_flight_cheapest_dates`
+### 6. `search_flight_cheapest_dates`
 Find cheapest dates for a specific route.
 
 **Parameters:**
@@ -88,14 +88,22 @@ npm install
 
 3. Set up environment variables:
 ```bash
-cp .env.example .env
+# Create .env file with your Amadeus API credentials
+touch .env
 ```
 
-4. Configure your Amadeus API credentials in `.env`:
+4. Get Amadeus API credentials:
+   - Visit [Amadeus for Developers](https://developers.amadeus.com/)
+   - Create a free account
+   - Create a new app to get your API key and secret
+   - Use the **test environment** credentials for development
+
+5. Configure your Amadeus API credentials in `.env`:
 ```env
 AMADEUS_CLIENT_ID=your_amadeus_client_id_here
 AMADEUS_CLIENT_SECRET=your_amadeus_client_secret_here
 AMADEUS_ENVIRONMENT=test
+DEFAULT_CURRENCY=USD
 ```
 
 ## Usage
@@ -117,6 +125,57 @@ npm test
 npm run test:watch
 npm run test:coverage
 ```
+
+## MCP Server Configuration
+
+To use this server with MCP-compatible clients (like Claude Desktop, Cline, etc.), you need to configure it in your MCP client settings.
+
+### For Claude Desktop
+
+Add the following to your Claude Desktop configuration file:
+
+**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Linux**: `~/.config/claude/claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "amadeus-flights": {
+      "command": "node",
+      "args": ["dist/server/index.js"],
+      "cwd": "/path/to/your/mcp-amadeusflights",
+      "env": {
+        "AMADEUS_CLIENT_ID": "your_amadeus_client_id_here",
+        "AMADEUS_CLIENT_SECRET": "your_amadeus_client_secret_here",
+        "AMADEUS_ENVIRONMENT": "test",
+        "DEFAULT_CURRENCY": "USD"
+      }
+    }
+  }
+}
+```
+
+### For Other MCP Clients
+
+The server can be used with any MCP-compatible client. Make sure to:
+
+1. **Build the project first**:
+   ```bash
+   npm run build
+   ```
+
+2. **Set the correct path** in your MCP client configuration to point to the built server
+
+3. **Configure environment variables** either in the MCP client config or in a `.env` file
+
+### MCP Server Features
+
+- **Standard MCP Protocol**: Compatible with all MCP clients
+- **Tool Discovery**: Automatically exposes all available flight search tools
+- **Error Handling**: Comprehensive error reporting and logging
+- **Rate Limiting**: Built-in protection against API abuse
+- **Type Safety**: Full TypeScript support with proper type definitions
 
 ## Configuration
 
@@ -202,6 +261,42 @@ ISC
 3. Make your changes
 4. Add tests for new functionality
 5. Submit a pull request
+
+## Troubleshooting
+
+### Common Issues
+
+**"Missing required environment variables" error:**
+- Ensure your `.env` file exists and contains valid Amadeus API credentials
+- Check that the `.env` file is in the project root directory
+- Verify the environment variable names match exactly (case-sensitive)
+
+**"Amadeus API Error" messages:**
+- Verify your API credentials are correct
+- Check if you're using test environment credentials (not production)
+- Ensure your Amadeus account has the necessary API access
+
+**MCP client connection issues:**
+- Make sure you've built the project with `npm run build`
+- Verify the path in your MCP client configuration is correct
+- Check that the server starts successfully with `npm run dev`
+
+**Flight search returns limited results:**
+- This is normal behavior in the test environment
+- Try different routes or dates for more variety
+- The server limits results to 10 flights by default to prevent context flooding
+
+### Debug Mode
+
+Run the server in debug mode to see detailed logs:
+```bash
+LOG_LEVEL=debug npm run dev
+```
+
+Test the Amadeus API connection directly:
+```bash
+node debug-flight-search.js
+```
 
 ## Support
 
