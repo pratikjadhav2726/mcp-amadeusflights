@@ -1,6 +1,8 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, ListToolsRequestSchema, ListPromptsRequestSchema, GetPromptRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { completable } from '@modelcontextprotocol/sdk/server/completable.js';
+import { z } from 'zod';
 import { AmadeusClient } from '../services/amadeus-client.js';
 import { FlightSearchTool } from './tools/flight-search.js';
 import { ServerConfig } from '../types/mcp.js';
@@ -20,6 +22,7 @@ export class AmadeusFlightsMCPServer {
       {
         capabilities: {
           tools: {},
+          prompts: {},
         },
       }
     );
@@ -28,6 +31,7 @@ export class AmadeusFlightsMCPServer {
     this.flightSearchTool = new FlightSearchTool(this.amadeusClient);
 
     this.setupToolHandlers();
+    this.setupPromptHandlers();
     this.setupErrorHandling();
   }
 
@@ -330,6 +334,205 @@ export class AmadeusFlightsMCPServer {
         };
       }
     });
+  }
+
+  private setupPromptHandlers(): void {
+    // List available prompts
+    this.server.setRequestHandler(ListPromptsRequestSchema, async () => {
+      return {
+        prompts: [
+          {
+            name: 'format-flight-results',
+            description: 'Format flight search results with airline information, departure/arrival times, and layover details in a user-friendly format',
+            arguments: [
+              {
+                name: 'flightData',
+                description: 'Flight search results data to format',
+                required: true
+              },
+              {
+                name: 'includeDetails',
+                description: 'Whether to include detailed information like aircraft type and terminal info',
+                required: false
+              }
+            ]
+          }
+        ]
+      };
+    });
+
+    // Handle prompt requests
+    this.server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+      const { name, arguments: args } = request.params;
+
+      try {
+        switch (name) {
+          case 'format-flight-results':
+            return this.formatFlightResultsPrompt(args);
+          default:
+            throw new Error(`Unknown prompt: ${name}`);
+        }
+      } catch (error: any) {
+        const mcpError = ErrorHandler.handleError(error);
+        ErrorHandler.logError(mcpError, `prompt:${name}`);
+        
+        return {
+          messages: [{
+            role: 'assistant',
+            content: {
+              type: 'text',
+              text: `Error: ${mcpError.message}`
+            }
+          }]
+        };
+      }
+    });
+  }
+
+  public formatFlightResultsPrompt(args: any): any {
+    const { flightData, includeDetails = true } = args;
+    
+    // Parse flight data if it's a string
+    let flights;
+    try {
+      flights = typeof flightData === 'string' ? JSON.parse(flightData) : flightData;
+    } catch (error) {
+      flights = flightData;
+    }
+
+    // Ensure we have flight offers
+    const flightOffers = flights?.data || flights?.flightOffers || flights || [];
+    
+    if (!Array.isArray(flightOffers) || flightOffers.length === 0) {
+      return {
+        messages: [{
+          role: 'assistant',
+          content: {
+            type: 'text',
+            text: 'No flight results found to format.'
+          }
+        }]
+      };
+    }
+
+    // Format the flight results
+    const formattedResults = this.formatFlightResults(flightOffers, includeDetails);
+    
+    return {
+      messages: [{
+        role: 'assistant',
+        content: {
+          type: 'text',
+          text: formattedResults
+        }
+      }]
+    };
+  }
+
+  private formatFlightResults(flightOffers: any[], includeDetails: boolean): string {
+    let result = '## ✈️ Flight Search Results\n\n';
+    
+    flightOffers.forEach((offer, index) => {
+      result += `### Option ${index + 1}\n`;
+      result += `**Price:** ${offer.price?.currency} ${offer.price?.total}\n`;
+      result += `**Bookable Seats:** ${offer.numberOfBookableSeats}\n\n`;
+      
+      if (offer.itineraries) {
+        offer.itineraries.forEach((itinerary: any, itineraryIndex: number) => {
+          if (offer.itineraries.length > 1) {
+            result += `#### ${itineraryIndex === 0 ? 'Outbound' : 'Return'} Journey\n`;
+          }
+          
+          result += `**Total Duration:** ${itinerary.duration}\n\n`;
+          
+          if (itinerary.segments) {
+            itinerary.segments.forEach((segment: any, segmentIndex: number) => {
+              result += `**Flight ${segmentIndex + 1}:**\n`;
+              result += `• **Airline:** ${segment.carrierCode} ${segment.number}`;
+              
+              // Add airline name if available in dictionaries
+              if (offer.dictionaries?.carriers?.[segment.carrierCode]) {
+                result += ` (${offer.dictionaries.carriers[segment.carrierCode].businessName})`;
+              }
+              result += '\n';
+              
+              result += `• **Route:** ${segment.departure.iataCode} → ${segment.arrival.iataCode}\n`;
+              result += `• **Departure:** ${this.formatDateTime(segment.departure.at)}`;
+              if (segment.departure.terminal) {
+                result += ` (Terminal ${segment.departure.terminal})`;
+              }
+              result += '\n';
+              
+              result += `• **Arrival:** ${this.formatDateTime(segment.arrival.at)}`;
+              if (segment.arrival.terminal) {
+                result += ` (Terminal ${segment.arrival.terminal})`;
+              }
+              result += '\n';
+              
+              result += `• **Duration:** ${segment.duration}\n`;
+              result += `• **Stops:** ${segment.numberOfStops === 0 ? 'Non-stop' : `${segment.numberOfStops} stop${segment.numberOfStops > 1 ? 's' : ''}`}\n`;
+              
+              if (includeDetails) {
+                if (segment.aircraft?.code) {
+                  result += `• **Aircraft:** ${segment.aircraft.code}\n`;
+                }
+                if (segment.operating?.carrierCode && segment.operating.carrierCode !== segment.carrierCode) {
+                  result += `• **Operated by:** ${segment.operating.carrierCode}\n`;
+                }
+              }
+              
+              // Add layover information
+              if (segmentIndex < itinerary.segments.length - 1) {
+                const nextSegment = itinerary.segments[segmentIndex + 1];
+                const layoverTime = this.calculateLayoverTime(segment.arrival.at, nextSegment.departure.at);
+                result += `• **Layover:** ${layoverTime} at ${segment.arrival.iataCode}\n`;
+              }
+              
+              result += '\n';
+            });
+          }
+          
+          result += '---\n\n';
+        });
+      }
+    });
+    
+    return result;
+  }
+
+  private formatDateTime(dateTimeString: string): string {
+    try {
+      const date = new Date(dateTimeString);
+      return date.toLocaleString('en-US', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZoneName: 'short'
+      });
+    } catch (error) {
+      return dateTimeString;
+    }
+  }
+
+  private calculateLayoverTime(arrivalTime: string, departureTime: string): string {
+    try {
+      const arrival = new Date(arrivalTime);
+      const departure = new Date(departureTime);
+      const diffMs = departure.getTime() - arrival.getTime();
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      
+      if (diffHours > 0) {
+        return `${diffHours}h ${diffMinutes}m`;
+      } else {
+        return `${diffMinutes}m`;
+      }
+    } catch (error) {
+      return 'Unknown';
+    }
   }
 
   private setupErrorHandling(): void {
