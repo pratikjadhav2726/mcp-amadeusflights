@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "amadeus-flights": {
+      "command": "node",
+      "args": ["dist/server/index.js"],
+      "cwd": "C:\\Users\\pjadhav\\Documents\\Projects\\mcp-amadeusflights",
+      "env": {
+        "AMADEUS_CLIENT_ID": "Wzmbe34tw7dyDdRBJsApgZjAibdPkmU4",
+        "AMADEUS_CLIENT_SECRET": "your_api_secret_here",
+        "AMADEUS_ENVIRONMENT": "test"
+      }
+    }
+  }
+}
