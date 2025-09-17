@@ -89,7 +89,7 @@ export const searchMultiCityFlightsSchema = z.object({
     id: z.string().min(1, 'Traveler ID is required'),
     travelerType: z.enum(['ADULT', 'CHILD', 'SENIOR', 'YOUNG', 'HELD_INFANT', 'SEATED_INFANT', 'STUDENT'])
   })).min(1, 'At least one traveler is required').max(9, 'Maximum 9 travelers allowed'),
-  sources: z.array(z.string()).min(1, 'At least one source is required'),
+  sources: z.array(z.enum(['GDS'])).min(1, 'At least one source is required').default(['GDS']),
   searchCriteria: z.object({
     maxFlightOffers: z.number().int().min(1).max(250).optional(),
     flightFilters: z.object({
