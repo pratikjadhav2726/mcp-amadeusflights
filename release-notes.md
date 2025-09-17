@@ -1,12 +1,18 @@
-# 🚀 MCP Amadeus Flights Server v1.0.0
+# 🚀 MCP Amadeus Flights Server v1.1.0
 
-**Initial Release - Complete Flight Search Solution for LLMs**
+**Enhanced Release - Advanced MCP Server with Registered Prompts & Improved LLM Integration**
 
 ## ✨ What's New
 
-This is the first stable release of the MCP Amadeus Flights Server, providing comprehensive flight search capabilities to Large Language Models through the Model Context Protocol.
+This release significantly enhances the MCP Amadeus Flights Server with comprehensive prompt registration, improved MCP SDK 1.18.0 integration, and advanced LLM interaction capabilities. The server now provides both powerful tools and intelligent prompts for seamless AI assistant integration.
 
 ## 🎯 Key Features
+
+### 🚀 **NEW: Advanced MCP Server with Registered Prompts**
+- **Prompt Registration**: 10+ intelligent prompts for enhanced LLM interaction
+- **MCP SDK 1.18.0**: Full compatibility with latest MCP SDK features
+- **Smart Prompt System**: Context-aware prompts for different travel scenarios
+- **Seamless Integration**: Works with Claude Desktop, Cline, and all MCP clients
 
 ### 🔍 Flight Search Capabilities
 - **Flight Search**: Search for flights between airports with flexible parameters
@@ -37,6 +43,33 @@ This is the first stable release of the MCP Amadeus Flights Server, providing co
 5. **`search_multi_city_flights`** - Search complex multi-city combinations
 6. **`search_flight_cheapest_dates`** - Find cheapest travel dates
 
+## 🎯 **NEW: Registered Prompts for Enhanced LLM Interaction**
+
+The server now includes 10+ intelligent prompts that provide context-aware assistance for different travel scenarios:
+
+### 📋 **Advanced Prompts (with Parameters)**
+1. **`format-flight-results`** - Format flight search results with airline info, times, and layover details
+2. **`flight-search-assistance`** - Get help with flight search parameters and recommendations
+3. **`compare-flights`** - Compare multiple flight options side by side
+4. **`travel-planning`** - Comprehensive travel planning assistance with tips and recommendations
+
+### 🎯 **Quick Action Prompts (No Parameters)**
+5. **`sort-by-price`** - Instructions to sort flights by price with airline details
+6. **`find-cheapest`** - Instructions to find the most affordable flight options
+7. **`non-stop-preferred`** - Instructions to prioritize non-stop flights
+8. **`business-class-search`** - Instructions to search for business class flights
+9. **`flexible-dates`** - Instructions to search with flexible travel dates
+10. **`morning-flights`** - Instructions to search for morning departure flights
+11. **`weekend-trip`** - Instructions for planning weekend getaways
+12. **`family-travel`** - Instructions for family-friendly flight options
+13. **`last-minute-travel`** - Instructions for urgent or last-minute travel
+
+### 🔧 **MCP Server Capabilities**
+- **Prompt Discovery**: All prompts are automatically discoverable by MCP clients
+- **Type Safety**: Full TypeScript support with proper argument validation
+- **Error Handling**: Comprehensive error management for all prompt operations
+- **Context Awareness**: Prompts adapt to different travel scenarios and user needs
+
 ## 🔧 Installation & Setup
 
 ```bash
@@ -56,12 +89,53 @@ npm run build
 npm start
 ```
 
-## 🔗 MCP Client Integration
+## 🔗 **Enhanced MCP Client Integration**
 
-Compatible with all MCP clients including:
-- Claude Desktop
-- Cline
-- Any MCP-compatible AI assistant
+### 🚀 **MCP Server Usage Examples**
+
+The server now provides both tools and prompts for comprehensive flight search assistance:
+
+#### **Using Tools (Direct API Calls)**
+```typescript
+// Search for flights
+await mcpClient.callTool('search_flights', {
+  origin: 'LAX',
+  destination: 'JFK',
+  departureDate: '2024-03-15',
+  adults: 1
+});
+
+// Get detailed flight offers
+await mcpClient.callTool('get_flight_offers', {
+  offerId: 'flight-offer-123'
+});
+```
+
+#### **Using Prompts (LLM-Assisted)**
+```typescript
+// Get formatted flight results
+await mcpClient.getPrompt('format-flight-results', {
+  flightData: JSON.stringify(flightResults),
+  includeDetails: 'true'
+});
+
+// Get travel planning assistance
+await mcpClient.getPrompt('travel-planning', {
+  destination: 'Paris',
+  origin: 'New York',
+  travelDates: 'March 2024',
+  budget: '$2000'
+});
+
+// Quick action prompts (no parameters)
+await mcpClient.getPrompt('find-cheapest');
+await mcpClient.getPrompt('business-class-search');
+```
+
+### 🎯 **Compatible MCP Clients**
+- **Claude Desktop** - Full tool and prompt support
+- **Cline** - Complete integration with all features
+- **Any MCP-compatible AI assistant** - Universal compatibility
 
 ## 📊 API Integration
 
@@ -134,6 +208,28 @@ Perfect for:
 - **Issues**: [GitHub Issues](https://github.com/pratikjadhav2726/mcp-amadeusflights/issues)
 - **Documentation**: [README.md](https://github.com/pratikjadhav2726/mcp-amadeusflights#readme)
 
+## 📋 Changelog
+
+### v1.1.0 (Current Release)
+- **NEW**: Comprehensive prompt registration system with 10+ intelligent prompts
+- **NEW**: Enhanced MCP SDK 1.18.0 integration with full prompt support
+- **NEW**: Advanced prompt types including parameterized and quick-action prompts
+- **NEW**: Context-aware prompts for different travel scenarios
+- **NEW**: Improved LLM interaction capabilities
+- **ENHANCED**: Better MCP client integration examples and documentation
+- **ENHANCED**: Type safety improvements for prompt arguments
+- **ENHANCED**: Error handling for prompt operations
+- **ENHANCED**: Comprehensive documentation with usage examples
+
+### v1.0.0
+- Initial release
+- Basic flight search functionality
+- Airport and airline lookup
+- Multi-city flight search
+- Flight inspiration and cheapest dates
+- Comprehensive error handling
+- Input validation and type safety
+
 ---
 
-**Full Changelog**: This is the initial release with all core features implemented.
+**Full Changelog**: v1.1.0 adds comprehensive prompt registration and enhanced MCP server capabilities.

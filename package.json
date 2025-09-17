@@ -1,6 +1,6 @@
 {
   "name": "mcp-amadeusflights",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "MCP server for Amadeus flight search capabilities",
   "main": "dist/server/index.js",
   "scripts": {

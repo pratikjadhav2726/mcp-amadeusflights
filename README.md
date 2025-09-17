@@ -1,17 +1,32 @@
-# MCP Amadeus Flights Server
+# MCP Amadeus Flights Server v1.1.0
 
-A Model Context Protocol (MCP) server that provides flight search capabilities to Large Language Models (LLMs) using the Amadeus Node.js SDK.
+A comprehensive Model Context Protocol (MCP) server that provides advanced flight search capabilities and intelligent prompts to Large Language Models (LLMs) using the Amadeus Node.js SDK.
+
+## 🚀 **NEW in v1.1.0: Advanced MCP Server with Registered Prompts**
+
+This release introduces comprehensive prompt registration, enhanced MCP SDK 1.18.0 integration, and intelligent LLM interaction capabilities. The server now provides both powerful tools and context-aware prompts for seamless AI assistant integration.
 
 ## Features
 
+### 🔍 **Flight Search Capabilities**
 - **Flight Search**: Search for flights between airports with flexible parameters
 - **Airport Lookup**: Find airports by name, city, or IATA code
 - **Airline Information**: Get detailed airline information
 - **Multi-City Flights**: Search for complex multi-city flight combinations
 - **Flight Inspiration**: Discover flight destinations based on budget and preferences
 - **Cheapest Dates**: Find the most affordable travel dates for specific routes
+
+### 🎯 **NEW: Intelligent Prompt System**
+- **10+ Registered Prompts**: Context-aware prompts for different travel scenarios
+- **Parameterized Prompts**: Advanced prompts with structured arguments
+- **Quick Action Prompts**: Simple prompts for common travel needs
+- **LLM Integration**: Seamless integration with AI assistants
+
+### 🛠️ **Technical Excellence**
+- **MCP SDK 1.18.0**: Full compatibility with latest MCP features
 - **Comprehensive Error Handling**: Robust error management with retry logic
 - **Input Validation**: Strong type safety and parameter validation
+- **TypeScript Support**: Complete type safety and IntelliSense support
 
 ## Available Tools
 
@@ -72,6 +87,119 @@ Find cheapest dates for a specific route.
 - `oneWay` (optional): One-way trip only
 - `nonStop` (optional): Non-stop flights only
 - `maxPrice` (optional): Maximum price filter
+
+## 🎯 **NEW: Registered Prompts for Enhanced LLM Interaction**
+
+The server now includes 10+ intelligent prompts that provide context-aware assistance for different travel scenarios:
+
+### 📋 **Advanced Prompts (with Parameters)**
+
+#### 1. `format-flight-results`
+Format flight search results with airline information, departure/arrival times, and layover details.
+
+**Parameters:**
+- `flightData` (required): Flight search results data to format
+- `includeDetails` (optional): Whether to include detailed information like aircraft type and terminal info (true/false)
+
+#### 2. `flight-search-assistance`
+Get help with flight search parameters and find the best flights for your travel needs.
+
+**Parameters:**
+- `origin` (optional): Origin city or airport code
+- `destination` (optional): Destination city or airport code
+- `departureDate` (optional): Preferred departure date (YYYY-MM-DD)
+- `returnDate` (optional): Preferred return date for round trip (YYYY-MM-DD)
+- `passengers` (optional): Number of passengers
+- `travelClass` (optional): Preferred travel class (ECONOMY, PREMIUM_ECONOMY, BUSINESS, FIRST)
+- `budget` (optional): Maximum budget for the trip
+- `preferences` (optional): Any specific preferences or requirements
+
+#### 3. `compare-flights`
+Compare multiple flight options side by side to help you make the best choice.
+
+**Parameters:**
+- `flightOptions` (required): JSON string of flight options to compare
+- `criteria` (optional): Comparison criteria (price, duration, stops, etc.)
+
+#### 4. `travel-planning`
+Get comprehensive travel planning assistance including flight recommendations, timing, and tips.
+
+**Parameters:**
+- `destination` (required): Travel destination
+- `origin` (optional): Origin city or airport
+- `travelDates` (optional): Preferred travel dates or date range
+- `tripDuration` (optional): Length of stay
+- `travelers` (optional): Number and type of travelers
+- `interests` (optional): Travel interests and activities
+- `budget` (optional): Budget range for the trip
+
+### 🎯 **Quick Action Prompts (No Parameters)**
+
+#### 5. `sort-by-price`
+Get instructions to sort flight results by price with airline and timing details.
+
+#### 6. `find-cheapest`
+Get instructions to find the most affordable flight options.
+
+#### 7. `non-stop-preferred`
+Get instructions to prioritize non-stop flights.
+
+#### 8. `business-class-search`
+Get instructions to search for business class flights.
+
+#### 9. `flexible-dates`
+Get instructions to search with flexible travel dates.
+
+#### 10. `morning-flights`
+Get instructions to search for morning departure flights.
+
+#### 11. `weekend-trip`
+Get instructions for planning weekend getaways.
+
+#### 12. `family-travel`
+Get instructions for family-friendly flight options.
+
+#### 13. `last-minute-travel`
+Get instructions for urgent or last-minute travel.
+
+## 🚀 **MCP Server Usage Examples**
+
+### Using Tools (Direct API Calls)
+```typescript
+// Search for flights
+await mcpClient.callTool('search_flights', {
+  origin: 'LAX',
+  destination: 'JFK',
+  departureDate: '2024-03-15',
+  adults: 1
+});
+
+// Get detailed flight offers
+await mcpClient.callTool('get_flight_offers', {
+  offerId: 'flight-offer-123'
+});
+```
+
+### Using Prompts (LLM-Assisted)
+```typescript
+// Get formatted flight results
+await mcpClient.getPrompt('format-flight-results', {
+  flightData: JSON.stringify(flightResults),
+  includeDetails: 'true'
+});
+
+// Get travel planning assistance
+await mcpClient.getPrompt('travel-planning', {
+  destination: 'Paris',
+  origin: 'New York',
+  travelDates: 'March 2024',
+  budget: '$2000'
+});
+
+// Quick action prompts (no parameters)
+await mcpClient.getPrompt('find-cheapest');
+await mcpClient.getPrompt('business-class-search');
+```
 
 ## Installation
 

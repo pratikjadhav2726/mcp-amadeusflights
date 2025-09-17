@@ -1,0 +1,176 @@
+{
+  "claude_desktop_config": {
+    "description": "Claude Desktop MCP Configuration",
+    "file_locations": {
+      "windows": "%APPDATA%\\Claude\\claude_desktop_config.json",
+      "macos": "~/Library/Application Support/Claude/claude_desktop_config.json",
+      "linux": "~/.config/claude/claude_desktop_config.json"
+    },
+    "configuration": {
+      "mcpServers": {
+        "amadeus-flights": {
+          "command": "node",
+          "args": ["dist/server/index.js"],
+          "cwd": "/path/to/your/mcp-amadeusflights",
+          "env": {
+            "AMADEUS_CLIENT_ID": "your_amadeus_client_id_here",
+            "AMADEUS_CLIENT_SECRET": "your_amadeus_client_secret_here",
+            "AMADEUS_ENVIRONMENT": "test",
+            "DEFAULT_CURRENCY": "USD",
+            "LOG_LEVEL": "info"
+          }
+        }
+      }
+    }
+  },
+  "cline_config": {
+    "description": "Cline MCP Configuration",
+    "file_location": "~/.cline/mcp_config.json",
+    "configuration": {
+      "servers": [
+        {
+          "name": "amadeus-flights",
+          "command": "node",
+          "args": ["dist/server/index.js"],
+          "cwd": "/path/to/your/mcp-amadeusflights",
+          "env": {
+            "AMADEUS_CLIENT_ID": "your_amadeus_client_id_here",
+            "AMADEUS_CLIENT_SECRET": "your_amadeus_client_secret_here",
+            "AMADEUS_ENVIRONMENT": "test"
+          }
+        }
+      ]
+    }
+  },
+  "generic_mcp_client": {
+    "description": "Generic MCP Client Configuration",
+    "configuration": {
+      "server": {
+        "name": "amadeus-flights-server",
+        "version": "1.1.0",
+        "command": "node",
+        "args": ["dist/server/index.js"],
+        "working_directory": "/path/to/your/mcp-amadeusflights",
+        "environment_variables": {
+          "AMADEUS_CLIENT_ID": "your_amadeus_client_id_here",
+          "AMADEUS_CLIENT_SECRET": "your_amadeus_client_secret_here",
+          "AMADEUS_ENVIRONMENT": "test",
+          "MCP_SERVER_NAME": "amadeus-flights-server",
+          "MCP_SERVER_VERSION": "1.1.0",
+          "LOG_LEVEL": "info",
+          "RATE_LIMIT_REQUESTS_PER_MINUTE": "60",
+          "RATE_LIMIT_BURST": "10"
+        }
+      }
+    }
+  },
+  "docker_config": {
+    "description": "Docker Configuration for MCP Server",
+    "dockerfile": "FROM node:18-alpine\nWORKDIR /app\nCOPY package*.json ./\nRUN npm ci --only=production\nCOPY dist/ ./dist/\nEXPOSE 3000\nCMD [\"node\", \"dist/server/index.js\"]",
+    "docker_compose": {
+      "version": "3.8",
+      "services": {
+        "mcp-amadeusflights": {
+          "build": ".",
+          "environment": {
+            "AMADEUS_CLIENT_ID": "your_amadeus_client_id_here",
+            "AMADEUS_CLIENT_SECRET": "your_amadeus_client_secret_here",
+            "AMADEUS_ENVIRONMENT": "test"
+          },
+          "volumes": [
+            "./dist:/app/dist"
+          ]
+        }
+      }
+    }
+  },
+  "usage_examples": {
+    "tool_usage": {
+      "search_flights": {
+        "description": "Search for flights between airports",
+        "example": {
+          "tool": "search_flights",
+          "parameters": {
+            "origin": "LAX",
+            "destination": "JFK",
+            "departureDate": "2024-03-15",
+            "adults": 1,
+            "travelClass": "ECONOMY"
+          }
+        }
+      },
+      "get_flight_offers": {
+        "description": "Get detailed flight offer information",
+        "example": {
+          "tool": "get_flight_offers",
+          "parameters": {
+            "offerId": "flight-offer-123"
+          }
+        }
+      }
+    },
+    "prompt_usage": {
+      "format_flight_results": {
+        "description": "Format flight search results with detailed information",
+        "example": {
+          "prompt": "format-flight-results",
+          "arguments": {
+            "flightData": "{\"data\":[...flight results...]}",
+            "includeDetails": "true"
+          }
+        }
+      },
+      "travel_planning": {
+        "description": "Get comprehensive travel planning assistance",
+        "example": {
+          "prompt": "travel-planning",
+          "arguments": {
+            "destination": "Paris",
+            "origin": "New York",
+            "travelDates": "March 2024",
+            "budget": "$2000"
+          }
+        }
+      },
+      "quick_prompts": {
+        "description": "Quick action prompts (no parameters required)",
+        "examples": [
+          "find-cheapest",
+          "business-class-search",
+          "non-stop-preferred",
+          "flexible-dates",
+          "morning-flights",
+          "weekend-trip",
+          "family-travel",
+          "last-minute-travel"
+        ]
+      }
+    }
+  },
+  "troubleshooting": {
+    "common_issues": {
+      "missing_environment_variables": {
+        "error": "Missing required environment variables",
+        "solution": "Ensure AMADEUS_CLIENT_ID and AMADEUS_CLIENT_SECRET are set in your environment or .env file"
+      },
+      "build_required": {
+        "error": "Cannot find module 'dist/server/index.js'",
+        "solution": "Run 'npm run build' to compile TypeScript to JavaScript"
+      },
+      "permission_denied": {
+        "error": "Permission denied when running the server",
+        "solution": "Ensure the server file has execute permissions or run with 'node dist/server/index.js'"
+      },
+      "api_credentials_invalid": {
+        "error": "Amadeus API authentication failed",
+        "solution": "Verify your API credentials and ensure you're using test environment credentials"
+      }
+    },
+    "debug_commands": {
+      "test_connection": "node debug-flight-search.js",
+      "test_mcp_connection": "node debug-mcp-connection.js",
+      "run_server_debug": "LOG_LEVEL=debug npm run dev",
+      "check_build": "npm run build && ls -la dist/server/"
+    }
+  }
+}
