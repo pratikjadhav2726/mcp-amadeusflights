@@ -12,7 +12,9 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
-    "clean": "rimraf dist"
+    "clean": "rimraf dist",
+    "release": "node scripts/release.js",
+    "release:win": "scripts\\release.bat"
   },
   "repository": {
     "type": "git",
