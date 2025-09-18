@@ -139,9 +139,9 @@ export class AmadeusFlightsMCPServer {
     // Get airlines tool
     this.server.tool(
       'get_airlines',
-      'ONLY use this tool when you need detailed airline information (like full airline names) for specific airline codes. Do NOT use this tool for general flight searches - search_flights already provides airline information.',
+      'ONLY use this tool when you need detailed airline information for specific airline codes. Input airline codes will be automatically truncated to first two characters (e.g., F91358 → F9) before querying the API. Returns full airline codes and names. Do NOT use this tool for general flight searches - search_flights already provides airline information.',
       {
-        airlineCodes: z.string().optional().describe('Comma-separated airline codes (e.g., BA,AA,DL)'),
+        airlineCodes: z.string().optional().describe('Comma-separated airline codes (e.g., BA,AA,DL). Codes will be truncated to first 2 characters automatically.'),
         max: z.number().int().min(1).max(100).optional().describe('Maximum number of results to return')
       },
       async (args) => {

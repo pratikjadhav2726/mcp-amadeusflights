@@ -107,9 +107,18 @@ export class FlightSearchTool {
       
       const validatedParams = validateParams(schema, params);
       
+      // Truncate airline codes to first two characters if provided
+      let processedAirlineCodes = validatedParams.airlineCodes;
+      if (processedAirlineCodes) {
+        processedAirlineCodes = processedAirlineCodes
+          .split(',')
+          .map(code => code.trim().substring(0, 2))
+          .join(',');
+      }
+      
       const response = await withRetry(
         () => this.amadeusClient.getAirlines({
-          airlineCodes: validatedParams.airlineCodes,
+          airlineCodes: processedAirlineCodes,
           max: validatedParams.max
         }),
         3,
