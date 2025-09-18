@@ -237,14 +237,29 @@ DEFAULT_CURRENCY=USD
 ## Usage
 
 ### Development
+
+#### Stdio Transport (Default)
 ```bash
 npm run dev
 ```
 
+#### HTTP Transport
+```bash
+npm run dev:http
+```
+
 ### Production
+
+#### Stdio Transport (Default)
 ```bash
 npm run build
 npm start
+```
+
+#### HTTP Transport
+```bash
+npm run build
+npm run start:http
 ```
 
 ### Testing
@@ -253,6 +268,26 @@ npm test
 npm run test:watch
 npm run test:coverage
 ```
+
+```
+
+## Transport Options
+
+This MCP server supports two transport methods:
+
+### 1. Stdio Transport (Default)
+- **Use Case**: Local CLI tools, desktop applications
+- **Session Management**: Single session, stateless
+- **Client Types**: Claude Desktop, Cline, other MCP clients
+- **Deployment**: Local process execution
+
+### 2. HTTP Transport (NEW)
+- **Use Case**: Remote servers, web applications, browser-based clients
+- **Session Management**: Multiple sessions, stateful with session IDs
+- **Client Types**: Web browsers, remote MCP clients, web applications
+- **Deployment**: Network service on configurable port
+
+For detailed HTTP transport documentation, see [HTTP_TRANSPORT_README.md](./HTTP_TRANSPORT_README.md).
 
 ## MCP Server Configuration
 
@@ -283,6 +318,24 @@ Add the following to your Claude Desktop configuration file:
   }
 }
 ```
+
+### For HTTP Transport
+
+To use the HTTP transport, start the server and connect via HTTP:
+
+1. **Start the HTTP server**:
+   ```bash
+   npm run dev:http
+   # or for production
+   npm run build && npm run start:http
+   ```
+
+2. **Configure your HTTP client** to connect to `http://localhost:3000/mcp`
+
+3. **Handle session management**:
+   - Initialize session with POST request
+   - Use `Mcp-Session-Id` header for subsequent requests
+   - Sessions are automatically cleaned up when closed
 
 ### For Other MCP Clients
 
@@ -319,6 +372,8 @@ The server can be configured using environment variables:
 | `LOG_LEVEL` | Logging level | info |
 | `RATE_LIMIT_REQUESTS_PER_MINUTE` | Rate limit per minute | 60 |
 | `RATE_LIMIT_BURST` | Rate limit burst | 10 |
+| `HTTP_PORT` | HTTP server port (HTTP transport only) | 3000 |
+| `CORS_ORIGIN` | CORS origin for browser clients (HTTP transport only) | * |
 
 ## API Integration
 

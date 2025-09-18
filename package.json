@@ -6,7 +6,9 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/server/index.js",
+    "start:http": "node dist/server/http-index.js",
     "dev": "tsx src/server/index.ts",
+    "dev:http": "tsx src/server/http-index.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
@@ -38,10 +40,14 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.18.0",
     "amadeus": "^11.0.0",
+    "cors": "^2.8.5",
     "dotenv": "^17.2.2",
+    "express": "^4.21.2",
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.5.0",
     "@typescript-eslint/eslint-plugin": "^6.21.0",

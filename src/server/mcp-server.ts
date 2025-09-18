@@ -958,6 +958,11 @@ export class AmadeusFlightsMCPServer {
     });
   }
 
+  async connect(transport: any): Promise<void> {
+    await this.server.connect(transport);
+    console.error('Amadeus Flights MCP Server connected');
+  }
+
   async start(): Promise<void> {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
