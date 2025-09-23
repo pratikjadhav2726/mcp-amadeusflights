@@ -6,6 +6,8 @@ A comprehensive Model Context Protocol (MCP) server that provides advanced fligh
 
 This release introduces comprehensive prompt registration, enhanced MCP SDK 1.18.0 integration, and intelligent LLM interaction capabilities. The server now provides both powerful tools and context-aware prompts for seamless AI assistant integration.
 
+![Recording2025-09-23110120-ezgif com-resize](https://github.com/user-attachments/assets/0212d7d6-51f9-4e9e-9159-be652e0dd21d)
+
 ## Features
 
 ### 🔍 **Flight Search Capabilities**
