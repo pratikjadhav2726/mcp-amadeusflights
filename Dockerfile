@@ -17,9 +17,8 @@ RUN addgroup -g 1001 -S nodejs && \
 COPY package*.json ./
 COPY tsconfig.json ./
 
-# Install dependencies (including dev dependencies for build)
-RUN npm ci --only=production --silent && \
-    npm install typescript @types/node @types/express @types/cors --silent
+# Install all dependencies (including dev dependencies for build)
+RUN npm install --silent
 
 # Copy source code
 COPY src/ ./src/
