@@ -469,7 +469,7 @@ ISC
 **Flight search returns limited results:**
 - This is normal behavior in the test environment
 - Try different routes or dates for more variety
-- The server limits results to 10 flights by default to prevent context flooding
+- The server limits results to 20 flights by default to prevent context flooding
 
 ### Debug Mode
 

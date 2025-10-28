@@ -80,7 +80,7 @@ export class ResponseFormatter {
       return priceA - priceB;
     });
     
-    const limitedOffers = sortedOffers.slice(0, 10);
+    const limitedOffers = sortedOffers.slice(0, 20);
     
     return {
       content: [{
