@@ -25,15 +25,26 @@ describe('Validation', () => {
       expect(() => validateParams(searchFlightsSchema, validParams)).not.toThrow();
     });
 
-    it('should reject invalid airport codes', () => {
+    it('should reject empty airport codes', () => {
       const invalidParams = {
-        origin: 'LONDON', // Too long
+        origin: '', // Empty string
         destination: 'JFK',
         departureDate: '2024-06-01',
         adults: 1
       };
 
       expect(() => validateParams(searchFlightsSchema, invalidParams)).toThrow();
+    });
+
+    it('should accept city names or airport codes', () => {
+      const validParams = {
+        origin: 'Seattle', // City name is now valid
+        destination: 'JFK',
+        departureDate: '2024-06-01',
+        adults: 1
+      };
+
+      expect(() => validateParams(searchFlightsSchema, validParams)).not.toThrow();
     });
 
     it('should reject invalid date format', () => {

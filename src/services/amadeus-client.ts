@@ -291,7 +291,7 @@ export class AmadeusClient {
         keyword: 'LON',
         subType: 'AIRPORT'
       });
-      return response && response.result;
+      return !!(response && response.result);
     } catch (error: any) {
       console.error('Connection test failed:', error.message || error.code || 'Unknown error');
       return false;

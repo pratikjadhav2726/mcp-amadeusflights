@@ -87,11 +87,37 @@ describe('AmadeusClient', () => {
     });
 
     it('should handle API errors gracefully', async () => {
-      const mockAmadeus = require('amadeus');
-      const mockClient = new mockAmadeus();
-      mockClient.shopping.flightOffersSearch.get.mockRejectedValueOnce(
-        new Error('API Error')
-      );
+      // Create a new client instance with a mocked Amadeus that throws
+      const mockAmadeusInstance = {
+        shopping: {
+          flightOffersSearch: {
+            get: jest.fn().mockRejectedValue(new Error('API Error'))
+          }
+        },
+        referenceData: {
+          locations: {
+            get: jest.fn().mockResolvedValue({
+              result: {
+                data: [],
+                meta: { count: 0, links: { self: 'test' } }
+              }
+            })
+          },
+          airlines: {
+            get: jest.fn().mockResolvedValue({
+              result: {
+                data: [],
+                meta: { count: 0, links: { self: 'test' } }
+              }
+            })
+          }
+        }
+      };
+
+      // Mock the Amadeus constructor to return our error-throwing instance
+      jest.doMock('amadeus', () => {
+        return jest.fn().mockImplementation(() => mockAmadeusInstance);
+      });
 
       const params = {
         originLocationCode: 'LHR',
@@ -100,7 +126,12 @@ describe('AmadeusClient', () => {
         adults: 1
       };
 
-      await expect(client.searchFlights(params)).rejects.toThrow();
+      // Create a new client with the error-throwing mock
+      const errorClient = new AmadeusClient(config);
+      // Replace the internal amadeus instance
+      (errorClient as any).amadeus = mockAmadeusInstance;
+
+      await expect(errorClient.searchFlights(params)).rejects.toThrow();
     });
   });
 

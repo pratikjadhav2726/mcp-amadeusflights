@@ -12,7 +12,107 @@ export interface MCPToolResult {
   }>;
 }
 
-// Tool Parameter Types
+// Enums for type safety
+export enum TripType {
+  ONE_WAY = 'ONE_WAY',
+  ROUND_TRIP = 'ROUND_TRIP',
+  MULTI_CITY = 'MULTI_CITY'
+}
+
+export enum TravelClass {
+  ECONOMY = 'ECONOMY',
+  PREMIUM_ECONOMY = 'PREMIUM_ECONOMY',
+  BUSINESS = 'BUSINESS',
+  FIRST = 'FIRST'
+}
+
+export enum TravelerType {
+  ADULT = 'ADULT',
+  CHILD = 'CHILD',
+  SENIOR = 'SENIOR',
+  YOUNG = 'YOUNG',
+  HELD_INFANT = 'HELD_INFANT',
+  SEATED_INFANT = 'SEATED_INFANT',
+  STUDENT = 'STUDENT'
+}
+
+export enum TravelInfoType {
+  AIRPORT = 'AIRPORT',
+  AIRLINE = 'AIRLINE',
+  FLIGHT_OFFER = 'FLIGHT_OFFER'
+}
+
+export enum ExploreSearchType {
+  CHEAPEST_DATES = 'CHEAPEST_DATES',
+  DESTINATION_INSPIRATION = 'DESTINATION_INSPIRATION',
+  FLEXIBLE_SEARCH = 'FLEXIBLE_SEARCH'
+}
+
+// Consolidated Tool Parameter Types
+export interface FindFlightsParams {
+  tripType: TripType;
+  // Simple trip parameters (for ONE_WAY and ROUND_TRIP)
+  origin?: string;
+  destination?: string;
+  departureDate?: string;
+  returnDate?: string;
+  // Multi-city parameters (for MULTI_CITY)
+  segments?: Array<{
+    origin: string;
+    destination: string;
+    date: string;
+    time?: string;
+  }>;
+  // Passenger information
+  passengers: {
+    adults: number;
+    children?: number;
+    infants?: number;
+  };
+  // Preferences
+  preferences?: {
+    travelClass?: TravelClass;
+    nonStop?: boolean;
+    maxPrice?: number;
+    currency?: string;
+  };
+  // For getting specific offer details
+  offerId?: string;
+  max?: number;
+}
+
+export interface ExploreTravelOptionsParams {
+  searchType: ExploreSearchType;
+  origin: string;
+  destination?: string;
+  departureDate: string;
+  returnDate?: string;
+  oneWay?: boolean;
+  nonStop?: boolean;
+  duration?: string;
+  viewBy?: 'DURATION' | 'DATE' | 'DESTINATION';
+  maxPrice?: number;
+  aggregationMode?: 'DAY' | 'DESTINATION' | 'WEEK';
+  passengers?: {
+    adults: number;
+    children?: number;
+    infants?: number;
+  };
+}
+
+export interface GetTravelInfoParams {
+  infoType: TravelInfoType;
+  // For AIRPORT
+  keyword?: string;
+  countryCode?: string;
+  // For AIRLINE
+  airlineCodes?: string;
+  // For FLIGHT_OFFER
+  offerId?: string;
+  max?: number;
+}
+
+// Legacy types (kept for backward compatibility during transition)
 export interface SearchFlightsParams {
   origin: string;
   destination: string;
@@ -68,18 +168,6 @@ export interface SearchMultiCityFlightsParams {
       }>;
     };
   };
-}
-
-export interface GetFlightInspirationParams {
-  origin: string;
-  destination?: string;
-  departureDate?: string;
-  duration?: string;
-  oneWay?: boolean;
-  nonStop?: boolean;
-  viewBy?: 'DURATION' | 'DATE' | 'DESTINATION';
-  maxPrice?: number;
-  aggregationMode?: 'DAY' | 'DESTINATION' | 'WEEK';
 }
 
 export interface SearchFlightCheapestDatesParams {
