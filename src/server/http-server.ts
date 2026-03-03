@@ -169,7 +169,19 @@ export class AmadeusFlightsHTTPServer {
     }
 
     // Handle the request
-    await transport.handleRequest(req, res, req.body);
+    // Log when response starts and finishes
+    res.on('finish', () => {
+      const responseSessionId = res.getHeader('Mcp-Session-Id') || res.getHeader('mcp-session-id');
+      console.error(`[HTTP] Response finished - Status: ${res.statusCode}, Session ID in header: ${responseSessionId || 'none'}`);
+    });
+    
+    try {
+      await transport.handleRequest(req, res, req.body);
+      console.error(`[HTTP] handleRequest completed for session: ${sessionId || transport.sessionId || 'new'}`);
+    } catch (error) {
+      console.error(`[HTTP] Error in handleRequest:`, error);
+      throw error;
+    }
   }
 
   private async handleSessionRequest(req: express.Request, res: express.Response): Promise<void> {
