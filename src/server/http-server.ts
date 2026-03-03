@@ -21,15 +21,23 @@ export class AmadeusFlightsHTTPServer {
   }
 
   private setupMiddleware(): void {
-    // CORS configuration for browser-based clients
+    // CORS configuration for browser-based clients and MCP clients (n8n, etc.)
     this.app.use(cors({
       origin: process.env.CORS_ORIGIN || '*', // Configure appropriately for production
-      exposedHeaders: ['Mcp-Session-Id'],
-      allowedHeaders: ['Content-Type', 'mcp-session-id'],
+      exposedHeaders: ['Mcp-Session-Id', 'mcp-session-id'], // Support both cases
+      allowedHeaders: [
+        'Content-Type', 
+        'mcp-session-id', 
+        'Mcp-Session-Id', 
+        'Authorization',
+        'X-Requested-With',
+        'Accept'
+      ], // Allow common headers that MCP clients might send
+      credentials: true, // Allow credentials for authenticated requests
     }));
 
-    // JSON parsing middleware
-    this.app.use(express.json());
+    // JSON parsing middleware with increased limit for large requests
+    this.app.use(express.json({ limit: '10mb' }));
 
     // Request logging middleware
     this.app.use((req, res, next) => {
@@ -102,9 +110,12 @@ export class AmadeusFlightsHTTPServer {
   }
 
   private async handleMCPRequest(req: express.Request, res: express.Response): Promise<void> {
-    // Check for existing session ID
-    const sessionId = req.headers['mcp-session-id'] as string | undefined;
+    // Check for existing session ID (case-insensitive header lookup)
+    const sessionId = (req.headers['mcp-session-id'] || req.headers['Mcp-Session-Id']) as string | undefined;
     let transport: StreamableHTTPServerTransport;
+
+    // Enhanced logging for debugging
+    console.error(`[HTTP] POST /mcp - Session: ${sessionId || 'new'}, Body: ${JSON.stringify(req.body).substring(0, 200)}`);
 
     if (sessionId && this.transports[sessionId]) {
       // Reuse existing transport
@@ -142,14 +153,17 @@ export class AmadeusFlightsHTTPServer {
       // Store the server instance after connection
       this.servers[transport.sessionId!] = mcpServer;
     } else {
-      // Invalid request
+      // Invalid request - log details for debugging
+      console.error(`[HTTP] Invalid request - Session: ${sessionId || 'none'}, Body keys: ${req.body ? Object.keys(req.body).join(',') : 'no body'}, isInitialize: ${isInitializeRequest(req.body)}`);
       res.status(400).json({
         jsonrpc: '2.0',
         error: {
           code: -32000,
-          message: 'Bad Request: No valid session ID provided',
+          message: sessionId 
+            ? 'Bad Request: Invalid session ID' 
+            : 'Bad Request: No valid session ID provided and request is not a valid initialize request',
         },
-        id: null,
+        id: req.body?.id || null,
       });
       return;
     }
