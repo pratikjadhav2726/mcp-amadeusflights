@@ -212,16 +212,31 @@ export class AmadeusFlightsHTTPServer {
       return;
     }
 
-    // Handle the request
-    // Log when response starts and finishes
+    // Handle the request using StreamableHTTPServerTransport
+    // The transport's handleRequest method will:
+    // 1. Set the Mcp-Session-Id header in the response automatically
+    // 2. Handle the SSE (Server-Sent Events) stream for StreamableHTTP
+    // 3. Manage session state internally
+    
+    // Log when response starts and finishes to verify session ID is set
     res.on('finish', () => {
       const responseSessionId = res.getHeader('Mcp-Session-Id') || res.getHeader('mcp-session-id');
-      console.error(`[HTTP] Response finished - Status: ${res.statusCode}, Session ID in header: ${responseSessionId || 'none'}`);
+      const currentSessionId = sessionId || transport.sessionId;
+      console.error(`[HTTP] Response finished - Status: ${res.statusCode}, Session ID in header: ${responseSessionId || 'none'}, Transport session: ${currentSessionId || 'none'}`);
+      
+      // Verify the transport set the session ID correctly
+      if (!responseSessionId && currentSessionId) {
+        console.error(`[HTTP] WARNING: Session ID not set in response header but transport has session: ${currentSessionId}`);
+      }
     });
     
     try {
+      // Let StreamableHTTPServerTransport handle the request
+      // It will automatically set the Mcp-Session-Id header in the response
       await transport.handleRequest(req, res, req.body);
-      console.error(`[HTTP] handleRequest completed for session: ${sessionId || transport.sessionId || 'new'}`);
+      
+      const currentSessionId = sessionId || transport.sessionId;
+      console.error(`[HTTP] handleRequest completed for session: ${currentSessionId || 'new'}`);
     } catch (error) {
       console.error(`[HTTP] Error in handleRequest:`, error);
       throw error;
