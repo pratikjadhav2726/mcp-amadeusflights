@@ -38,8 +38,12 @@ export class AmadeusFlightsHTTPServer {
 
     // Middleware to normalize Accept header for MCP SDK compatibility
     // The MCP SDK requires Accept header to include both application/json and text/event-stream
+    // Also detect n8n clients and ensure proper header handling
     this.app.use((req, res, next) => {
       const acceptHeader = req.headers.accept || req.headers['accept'];
+      const userAgent = req.headers['user-agent'] || '';
+      const isN8N = userAgent.includes('n8n') || req.headers['x-n8n'] || req.headers['n8n-version'];
+      
       // If Accept header is missing, generic (*/*), or doesn't include required types, normalize it
       if (!acceptHeader || 
           acceptHeader === '*/*' || 
@@ -47,15 +51,31 @@ export class AmadeusFlightsHTTPServer {
         // Set Accept header to include both required content types
         req.headers.accept = 'application/json, text/event-stream';
       }
+      
+      // Store n8n detection in request for later use
+      (req as any).isN8N = isN8N;
+      
       next();
     });
 
     // JSON parsing middleware with increased limit for large requests
     this.app.use(express.json({ limit: '10mb' }));
 
-    // Request logging middleware
+    // Request logging middleware with enhanced n8n detection
     this.app.use((req, res, next) => {
-      console.error(`[HTTP] ${req.method} ${req.path} - Session: ${req.headers['mcp-session-id'] || 'new'}`);
+      const userAgent = req.headers['user-agent'] || '';
+      const isN8N = userAgent.includes('n8n') || 
+                   userAgent.includes('@n8n') ||
+                   req.headers['x-n8n'] || 
+                   req.headers['n8n-version'] ||
+                   req.headers['x-requested-with']?.toString().toLowerCase().includes('n8n');
+      
+      console.error(`[HTTP] ${req.method} ${req.path} - Session: ${req.headers['mcp-session-id'] || 'new'} - Client: ${isN8N ? 'n8n' : userAgent.substring(0, 50) || 'unknown'}`);
+      console.error(`[HTTP] Headers - Accept: ${req.headers.accept}, Content-Type: ${req.headers['content-type']}, User-Agent: ${userAgent.substring(0, 100)}`);
+      
+      // Store n8n detection in request for later use
+      (req as any).isN8N = isN8N;
+      
       next();
     });
   }
