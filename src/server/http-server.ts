@@ -235,12 +235,28 @@ export class AmadeusFlightsHTTPServer {
       // This ensures responses are sent immediately, not buffered
       res.setHeader('X-Accel-Buffering', 'no');
       
+      // CRITICAL: Set session ID header BEFORE transport handles request
+      // This ensures NGINX can forward it and n8n can read it via CORS
+      // The transport will also set it, but we set it early to ensure it's available
+      const currentSessionId = sessionId || transport.sessionId;
+      if (currentSessionId) {
+        res.setHeader('Mcp-Session-Id', currentSessionId);
+        res.setHeader('mcp-session-id', currentSessionId);
+      }
+      
       // Let StreamableHTTPServerTransport handle the request
       // It will automatically set the Mcp-Session-Id header in the response
       await transport.handleRequest(req, res, req.body);
       
-      const currentSessionId = sessionId || transport.sessionId;
-      console.error(`[HTTP] handleRequest completed for session: ${currentSessionId || 'new'}`);
+      // Ensure session ID is still set after transport handles request
+      // (transport might override it, so we set it again to be sure)
+      const finalSessionId = transport.sessionId || currentSessionId;
+      if (finalSessionId) {
+        res.setHeader('Mcp-Session-Id', finalSessionId);
+        res.setHeader('mcp-session-id', finalSessionId);
+      }
+      
+      console.error(`[HTTP] handleRequest completed for session: ${finalSessionId || 'new'}`);
     } catch (error) {
       console.error(`[HTTP] Error in handleRequest:`, error);
       throw error;
