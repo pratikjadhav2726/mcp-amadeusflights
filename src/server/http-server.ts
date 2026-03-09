@@ -36,6 +36,20 @@ export class AmadeusFlightsHTTPServer {
       credentials: true, // Allow credentials for authenticated requests
     }));
 
+    // Middleware to normalize Accept header for MCP SDK compatibility
+    // The MCP SDK requires Accept header to include both application/json and text/event-stream
+    this.app.use((req, res, next) => {
+      const acceptHeader = req.headers.accept || req.headers['accept'];
+      // If Accept header is missing, generic (*/*), or doesn't include required types, normalize it
+      if (!acceptHeader || 
+          acceptHeader === '*/*' || 
+          (!acceptHeader.includes('application/json') || !acceptHeader.includes('text/event-stream'))) {
+        // Set Accept header to include both required content types
+        req.headers.accept = 'application/json, text/event-stream';
+      }
+      next();
+    });
+
     // JSON parsing middleware with increased limit for large requests
     this.app.use(express.json({ limit: '10mb' }));
 
