@@ -164,8 +164,9 @@ export class AmadeusFlightsHTTPServer {
     if (sessionId && this.transports[sessionId]) {
       // Reuse existing transport
       transport = this.transports[sessionId];
-    } else if (!sessionId && isInitializeRequest(req.body)) {
-      // New initialization request
+    } else if (isInitializeRequest(req.body)) {
+      // New initialization request (with or without session ID)
+      // If session ID provided but transport doesn't exist, create a new one
       transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
         onsessioninitialized: (sessionId) => {
@@ -196,16 +197,26 @@ export class AmadeusFlightsHTTPServer {
       
       // Store the server instance after connection
       this.servers[transport.sessionId!] = mcpServer;
+    } else if (sessionId && !this.transports[sessionId]) {
+      // Session ID provided but transport doesn't exist (e.g., server restarted)
+      // Return proper MCP error instead of generic 400
+      res.status(200).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32001,
+          message: 'Session expired or invalid. Please reinitialize.',
+        },
+        id: req.body?.id || null,
+      });
+      return;
     } else {
-      // Invalid request - log details for debugging
+      // Invalid request - no session ID and not an initialize request
       console.error(`[HTTP] Invalid request - Session: ${sessionId || 'none'}, Body keys: ${req.body ? Object.keys(req.body).join(',') : 'no body'}, isInitialize: ${isInitializeRequest(req.body)}`);
       res.status(400).json({
         jsonrpc: '2.0',
         error: {
           code: -32000,
-          message: sessionId 
-            ? 'Bad Request: Invalid session ID' 
-            : 'Bad Request: No valid session ID provided and request is not a valid initialize request',
+          message: 'Bad Request: No valid session ID provided and request is not a valid initialize request',
         },
         id: req.body?.id || null,
       });
@@ -246,16 +257,10 @@ export class AmadeusFlightsHTTPServer {
       
       // Let StreamableHTTPServerTransport handle the request
       // It will automatically set the Mcp-Session-Id header in the response
+      // NOTE: Do NOT set headers after this - the transport sends the response
       await transport.handleRequest(req, res, req.body);
       
-      // Ensure session ID is still set after transport handles request
-      // (transport might override it, so we set it again to be sure)
       const finalSessionId = transport.sessionId || currentSessionId;
-      if (finalSessionId) {
-        res.setHeader('Mcp-Session-Id', finalSessionId);
-        res.setHeader('mcp-session-id', finalSessionId);
-      }
-      
       console.error(`[HTTP] handleRequest completed for session: ${finalSessionId || 'new'}`);
     } catch (error) {
       console.error(`[HTTP] Error in handleRequest:`, error);
