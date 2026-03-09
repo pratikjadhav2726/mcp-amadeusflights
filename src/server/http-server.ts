@@ -145,11 +145,21 @@ export class AmadeusFlightsHTTPServer {
 
   private async handleMCPRequest(req: express.Request, res: express.Response): Promise<void> {
     // Check for existing session ID (case-insensitive header lookup)
-    const sessionId = (req.headers['mcp-session-id'] || req.headers['Mcp-Session-Id']) as string | undefined;
+    // Also check all possible header variations that n8n might send
+    const sessionId = (req.headers['mcp-session-id'] || 
+                      req.headers['Mcp-Session-Id'] || 
+                      req.headers['mcp-sessionid'] ||
+                      req.headers['MCP-Session-Id'] ||
+                      req.headers['x-mcp-session-id']) as string | undefined;
     let transport: StreamableHTTPServerTransport;
 
-    // Enhanced logging for debugging
-    console.error(`[HTTP] POST /mcp - Session: ${sessionId || 'new'}, Body: ${JSON.stringify(req.body).substring(0, 200)}`);
+    // Enhanced logging for debugging - log ALL headers to see what n8n sends
+    const allHeaders = Object.keys(req.headers)
+      .filter(key => key.toLowerCase().includes('session') || key.toLowerCase().includes('mcp'))
+      .map(key => `${key}: ${req.headers[key]}`)
+      .join(', ');
+    console.error(`[HTTP] POST /mcp - Session: ${sessionId || 'new'}, Method: ${req.body?.method}, Headers with 'session' or 'mcp': [${allHeaders || 'none'}]`);
+    console.error(`[HTTP] POST /mcp - Body: ${JSON.stringify(req.body).substring(0, 200)}`);
 
     if (sessionId && this.transports[sessionId]) {
       // Reuse existing transport
