@@ -231,6 +231,10 @@ export class AmadeusFlightsHTTPServer {
     });
     
     try {
+      // CRITICAL: Disable Express response buffering for SSE/StreamableHTTP
+      // This ensures responses are sent immediately, not buffered
+      res.setHeader('X-Accel-Buffering', 'no');
+      
       // Let StreamableHTTPServerTransport handle the request
       // It will automatically set the Mcp-Session-Id header in the response
       await transport.handleRequest(req, res, req.body);
@@ -263,6 +267,12 @@ export class AmadeusFlightsHTTPServer {
         console.error(`[HTTP] MCP endpoint: http://localhost:${port}/mcp`);
         resolve();
       });
+
+      // CRITICAL: Set extended timeouts for long-running MCP operations
+      // MCP operations (like flight searches) can take time, especially with Amadeus API calls
+      server.timeout = 3600000; // 1 hour in milliseconds
+      server.keepAliveTimeout = 3600000; // 1 hour
+      server.headersTimeout = 3600000; // 1 hour
 
       server.on('error', (error) => {
         console.error('Failed to start HTTP server:', error);
